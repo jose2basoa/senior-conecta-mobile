@@ -1,24 +1,20 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+import { useEffect } from 'react';
+import { initDatabase } from '../src/db/database';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  useEffect(() => {
+    initDatabase();
+  }, []);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Stack screenOptions={{ headerTitleAlign: 'center' }}>
+      <Stack.Screen name="index" options={{ title: 'Sênior Conecta' }} />
+      <Stack.Screen name="emergencia" options={{ title: 'Emergência' }} />
+      <Stack.Screen name="medicamentos" options={{ title: 'Medicamentos' }} />
+      <Stack.Screen name="teste-vida" options={{ title: 'Teste de Vida' }} />
+      <Stack.Screen name="historico" options={{ title: 'Histórico' }} />
+      <Stack.Screen name="configuracoes" options={{ title: 'Configurações' }} />
+    </Stack>
   );
 }
