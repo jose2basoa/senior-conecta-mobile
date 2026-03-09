@@ -1,8 +1,15 @@
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { db } from '../src/db/database';
+import { getDatabase } from '../src/db/database';
 
 export default function EmergencyScreen() {
     const acionarEmergencia = () => {
+        const db = getDatabase();
+
+        if (!db) {
+        Alert.alert('Aviso', 'Banco local indisponível no navegador.');
+        return;
+        }
+
         const agora = new Date().toISOString();
 
         db.runSync(
@@ -18,14 +25,14 @@ export default function EmergencyScreen() {
         <Text style={styles.title}>Precisa de ajuda?</Text>
 
         <Pressable style={styles.button} onPress={acionarEmergencia}>
-            <Text style={styles.buttonText}>ACONAR EMERGÊNCIA</Text>
+            <Text style={styles.buttonText}>ACIONAR EMERGÊNCIA</Text>
         </Pressable>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, justifyContent: 'center', padding: 24 },    
+    container: { flex: 1, justifyContent: 'center', padding: 24 },
     title: { fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 24 },
     button: { backgroundColor: '#D32F2F', padding: 28, borderRadius: 20 },
     buttonText: { color: '#fff', textAlign: 'center', fontWeight: '700', fontSize: 20 },

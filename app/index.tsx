@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Button, Pressable, StyleSheet, Text, View } from 'react-native';
+import { capturarLocalizacaoAtual } from '../src/services/locationService';
 
 export default function HomeScreen() {
 return (
@@ -26,6 +27,11 @@ return (
     <Pressable style={styles.button} onPress={() => router.push('/configuracoes')}>
         <Text style={styles.buttonText}>Configurações</Text>
     </Pressable>
+
+    <Button
+        title="Capturar localização"
+        onPress={() => capturarLocalizacaoAtual()}
+    />
     </View>
 );
 }
