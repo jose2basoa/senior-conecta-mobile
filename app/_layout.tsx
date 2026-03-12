@@ -9,8 +9,14 @@ export default function RootLayout() {
 
   return (
     <Stack screenOptions={{ headerTitleAlign: 'center' }}>
-      <Stack.Screen name="index" options={{ title: 'Sênior Conecta' }} />
-      <Stack.Screen name="emergencia" options={{ title: 'Emergência' }} />
+      <Stack.Screen
+        name="index"
+        options={{ title: 'Sênior Conecta', headerShown: false }}
+      />
+      <Stack.Screen
+        name="emergencia"
+        options={{ title: 'Emergência', headerShown: false }}
+      />
       <Stack.Screen name="medicamentos" options={{ title: 'Medicamentos' }} />
       <Stack.Screen name="teste-vida" options={{ title: 'Teste de Vida' }} />
       <Stack.Screen name="historico" options={{ title: 'Histórico' }} />
