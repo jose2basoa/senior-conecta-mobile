@@ -10,6 +10,14 @@ export default function RootLayout() {
   return (
     <Stack screenOptions={{ headerTitleAlign: 'center' }}>
       <Stack.Screen
+        name="login"
+        options={{ title: 'Entrar', headerShown: false }}
+      />
+      <Stack.Screen
+        name="cadastro-idoso"
+        options={{ title: 'Cadastro do Idoso', headerShown: false }}
+      />
+      <Stack.Screen
         name="index"
         options={{ title: 'Sênior Conecta', headerShown: false }}
       />
@@ -17,10 +25,22 @@ export default function RootLayout() {
         name="emergencia"
         options={{ title: 'Emergência', headerShown: false }}
       />
-      <Stack.Screen name="medicamentos" options={{ title: 'Medicamentos' }} />
-      <Stack.Screen name="teste-vida" options={{ title: 'Teste de Vida' }} />
-      <Stack.Screen name="historico" options={{ title: 'Histórico' }} />
-      <Stack.Screen name="configuracoes" options={{ title: 'Configurações' }} />
+      <Stack.Screen
+        name="medicamentos"
+        options={{ title: 'Medicamentos' }}
+      />
+      <Stack.Screen
+        name="teste-vida"
+        options={{ title: 'Teste de Vida' }}
+      />
+      <Stack.Screen
+        name="historico"
+        options={{ title: 'Histórico' }}
+      />
+      <Stack.Screen
+        name="configuracoes"
+        options={{ title: 'Configurações' }}
+      />
     </Stack>
   );
 }

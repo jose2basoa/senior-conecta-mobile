@@ -1,29 +1,45 @@
-const API_BASE_URL = 'http://SEU_IP_OU_DOMINIO:8000/api';
+const API_URL = 'http://SEU_IP_OU_DOMINIO/api';
 
-type EventoApi = {
-    local_id?: number | null;
-    tipo: string;
-    descricao: string;
-    origem: string;
-    status: string;
-    latitude: number | null;
-    longitude: number | null;
-    registrado_em: string;
-};
-
-export async function enviarEventoEmergenciaParaApi(evento: EventoApi) {
-    const response = await fetch(`${API_BASE_URL}/eventos/emergencia`, {
+export async function loginIdoso(payload: { cpf: string; email: string }) {
+    const response = await fetch(`${API_URL}/idoso/login`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            Accept: 'application/json',
         },
-        body: JSON.stringify(evento),
+        body: JSON.stringify(payload),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-        throw new Error(`Falha ao enviar evento. Status: ${response.status}`);
+        throw new Error(data?.message || 'Não foi possível fazer login.');
     }
 
-    return response.json();
+    return data;
+}
+
+export async function cadastrarIdosoStep1(payload: {
+    nome: string;
+    data_nascimento: string;
+    sexo: string;
+    cpf: string;
+    telefone: string;
+    email: string;
+    observacoes?: string;
+}) {
+    const response = await fetch(`${API_URL}/idoso/cadastro-step1`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.message || 'Não foi possível cadastrar.');
+    }
+
+    return data;
 }

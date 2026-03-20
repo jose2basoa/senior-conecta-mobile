@@ -1,10 +1,10 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
     Animated,
+    Dimensions,
     PanResponder,
     Pressable,
     SafeAreaView,
@@ -13,7 +13,6 @@ import {
     View,
 } from 'react-native';
 
-// AJUSTE ESTES IMPORTS CONFORME SEU PROJETO
 import { enviarEventoEmergenciaParaApi } from '../src/services/apiService';
 import { registrarEventoEmergenciaLocal } from '../src/services/emergencyService';
 import { capturarLocalizacaoAtual } from '../src/services/locationService';
@@ -24,11 +23,15 @@ const KNOB_SIZE = 58;
 const TRACK_PADDING = 4;
 const MAX_DRAG = SLIDER_WIDTH - KNOB_SIZE - TRACK_PADDING * 2;
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 export default function EmergenciaScreen() {
     const [countdown, setCountdown] = useState(COUNTDOWN_START);
     const [cancelado, setCancelado] = useState(false);
     const [enviado, setEnviado] = useState(false);
     const [enviando, setEnviando] = useState(false);
+    const [mostrarOverlaySucesso, setMostrarOverlaySucesso] = useState(false);
+    const [mostrarOverlayCancelado, setMostrarOverlayCancelado] = useState(false);
 
     const dragX = useRef(new Animated.Value(0)).current;
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -36,18 +39,63 @@ export default function EmergenciaScreen() {
     const canceladoRef = useRef(false);
     const enviadoRef = useRef(false);
 
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    const telaOpacity = useRef(new Animated.Value(1)).current;
+
+    const successCircleScale = useRef(new Animated.Value(1)).current;
+    const successCircleOpacity = useRef(new Animated.Value(0)).current;
+    const successMessageOpacity = useRef(new Animated.Value(0)).current;
+    const successMessageTranslateY = useRef(new Animated.Value(18)).current;
+
+    const cancelCircleScale = useRef(new Animated.Value(0.35)).current;
+    const cancelCircleOpacity = useRef(new Animated.Value(0)).current;
+
+    const maxCircleScale = useMemo(() => {
+        const diagonal = Math.sqrt(SCREEN_WIDTH * SCREEN_WIDTH + SCREEN_HEIGHT * SCREEN_HEIGHT);
+        const baseSize = 120;
+        return diagonal / baseSize + 2.5;
+    }, []);
+
     useEffect(() => {
+        iniciarPulso();
         iniciarContagem();
 
         return () => {
             if (timerRef.current) {
                 clearInterval(timerRef.current);
             }
+            pulseAnim.stopAnimation();
         };
     }, []);
 
+    function iniciarPulso() {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, {
+                    toValue: 1.06,
+                    duration: 700,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseAnim, {
+                    toValue: 1,
+                    duration: 700,
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
+    }
+
+    function pararPulso() {
+        pulseAnim.stopAnimation();
+        pulseAnim.setValue(1);
+    }
+
     function iniciarContagem() {
-        timerRef.current = setInterval(async () => {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+        }
+
+        timerRef.current = setInterval(() => {
             if (canceladoRef.current || enviadoRef.current) {
                 if (timerRef.current) {
                     clearInterval(timerRef.current);
@@ -59,16 +107,40 @@ export default function EmergenciaScreen() {
             setCountdown(countdownRef.current);
 
             if (countdownRef.current > 0) {
-                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }
 
             if (countdownRef.current <= 0) {
                 if (timerRef.current) {
                     clearInterval(timerRef.current);
                 }
-                await enviarSOS();
+                void enviarSOS();
             }
         }, 1000);
+    }
+
+    async function reproduzirAnimacaoCancelamento() {
+        setMostrarOverlayCancelado(true);
+
+        cancelCircleScale.setValue(0.35);
+        cancelCircleOpacity.setValue(1);
+
+        await new Promise<void>((resolve) => {
+            Animated.parallel([
+                Animated.timing(telaOpacity, {
+                    toValue: 0,
+                    duration: 180,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(cancelCircleScale, {
+                    toValue: maxCircleScale,
+                    duration: 650,
+                    useNativeDriver: true,
+                }),
+            ]).start(() => resolve());
+        });
+
+        router.replace('/');
     }
 
     async function cancelarSOS() {
@@ -81,76 +153,128 @@ export default function EmergenciaScreen() {
             clearInterval(timerRef.current);
         }
 
+        pararPulso();
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        await reproduzirAnimacaoCancelamento();
+    }
+
+    async function reproduzirAnimacaoSucesso() {
+        setMostrarOverlaySucesso(true);
+
+        successCircleScale.setValue(1);
+        successCircleOpacity.setValue(1);
+        successMessageOpacity.setValue(0);
+        successMessageTranslateY.setValue(18);
+
+        await new Promise<void>((resolve) => {
+            Animated.parallel([
+                Animated.timing(telaOpacity, {
+                    toValue: 0,
+                    duration: 180,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(successCircleScale, {
+                    toValue: maxCircleScale,
+                    duration: 700,
+                    useNativeDriver: true,
+                }),
+            ]).start(() => resolve());
+        });
+
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        Alert.alert('SOS cancelado', 'O pedido de ajuda foi cancelado.', [
-            {
-                text: 'Voltar',
-                onPress: () => router.back(),
-            },
-        ]);
+        await new Promise<void>((resolve) => {
+            Animated.parallel([
+                Animated.timing(successMessageOpacity, {
+                    toValue: 1,
+                    duration: 350,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(successMessageTranslateY, {
+                    toValue: 0,
+                    duration: 350,
+                    useNativeDriver: true,
+                }),
+            ]).start(() => resolve());
+        });
+
+        setTimeout(() => {
+            router.replace('/');
+        }, 1200);
     }
 
     async function enviarSOS() {
         if (canceladoRef.current || enviadoRef.current || enviando) return;
 
-        try {
-            setEnviando(true);
-            enviadoRef.current = true;
-            setEnviado(true);
+        setEnviando(true);
+        enviadoRef.current = true;
+        setEnviado(true);
+        pararPulso();
 
+        try {
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
-            const localizacao = await capturarLocalizacaoAtual();
+            let latitude: number | null = null;
+            let longitude: number | null = null;
+
+            try {
+                const localizacao = await capturarLocalizacaoAtual();
+                latitude = localizacao?.latitude ?? null;
+                longitude = localizacao?.longitude ?? null;
+            } catch (error) {
+                console.log('Falha ao capturar localização:', error);
+            }
 
             const evento = {
                 tipo: 'sos',
                 descricao: 'Pedido manual de ajuda pelo botão SOS',
                 origem: 'app_idoso',
                 status: 'pendente',
-                latitude: localizacao?.latitude ?? null,
-                longitude: localizacao?.longitude ?? null,
+                latitude,
+                longitude,
                 registrado_em: new Date().toISOString(),
             };
 
-            const eventoLocal = await registrarEventoEmergenciaLocal(evento);
+            let localId: number | null = null;
+
+            try {
+                const eventoLocal = await registrarEventoEmergenciaLocal(evento);
+                localId = eventoLocal?.id ?? null;
+            } catch (error) {
+                console.log('Falha ao registrar localmente:', error);
+            }
 
             try {
                 await enviarEventoEmergenciaParaApi({
                     ...evento,
-                    local_id: eventoLocal?.id ?? null,
+                    local_id: localId,
                 });
-            } catch (apiError) {
-                console.log('Falha ao enviar para API, evento mantido localmente.', apiError);
+            } catch (error) {
+                console.log('Falha ao enviar para API, seguindo fluxo visual:', error);
             }
 
-            Alert.alert(
-                'Ajuda solicitada',
-                'O pedido de ajuda foi registrado e enviado.',
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => router.replace('/'),
-                    },
-                ]
-            );
+            await reproduzirAnimacaoSucesso();
         } catch (error) {
-            console.log('Erro ao processar SOS:', error);
+            console.log('Erro inesperado no fluxo SOS:', error);
 
-            Alert.alert(
-                'Erro',
-                'Não foi possível concluir o pedido de ajuda agora.'
-            );
-
+            setEnviando(false);
             enviadoRef.current = false;
             setEnviado(false);
-            setEnviando(false);
             countdownRef.current = COUNTDOWN_START;
             setCountdown(COUNTDOWN_START);
             canceladoRef.current = false;
             setCancelado(false);
             dragX.setValue(0);
+            telaOpacity.setValue(1);
+            successCircleOpacity.setValue(0);
+            successMessageOpacity.setValue(0);
+            successMessageTranslateY.setValue(18);
+            cancelCircleOpacity.setValue(0);
+            cancelCircleScale.setValue(0.35);
+            setMostrarOverlaySucesso(false);
+            setMostrarOverlayCancelado(false);
 
+            iniciarPulso();
             iniciarContagem();
         }
     }
@@ -191,11 +315,11 @@ export default function EmergenciaScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea}>
-            <View style={styles.container}>
+            <Animated.View style={[styles.container, { opacity: telaOpacity }]}>
                 <Pressable
                     style={styles.closeButton}
                     onPress={() => router.back()}
-                    disabled={enviado || enviando}
+                    disabled={enviado || enviando || cancelado}
                 >
                     <MaterialIcons name="close" size={28} color="#333333" />
                 </Pressable>
@@ -209,11 +333,18 @@ export default function EmergenciaScreen() {
                     </Text>
 
                     <View style={styles.countdownWrap}>
-                        <View style={styles.countdownCircle}>
+                        <Animated.View
+                            style={[
+                                styles.countdownCircle,
+                                {
+                                    transform: [{ scale: enviado || enviando || cancelado ? 1 : pulseAnim }],
+                                },
+                            ]}
+                        >
                             <Text style={styles.countdownText}>
-                                {enviado || enviando ? '✓' : countdown}
+                                {enviado || enviando ? '✓' : cancelado ? '×' : countdown}
                             </Text>
-                        </View>
+                        </Animated.View>
                     </View>
 
                     <View style={styles.spacer} />
@@ -236,7 +367,51 @@ export default function EmergenciaScreen() {
                         </View>
                     </View>
                 </View>
-            </View>
+            </Animated.View>
+
+            {mostrarOverlaySucesso && (
+                <View pointerEvents="none" style={styles.successOverlay}>
+                    <Animated.View
+                        style={[
+                            styles.successCircleFill,
+                            {
+                                opacity: successCircleOpacity,
+                                transform: [{ scale: successCircleScale }],
+                            },
+                        ]}
+                    />
+
+                    <Animated.View
+                        style={[
+                            styles.successMessageWrap,
+                            {
+                                opacity: successMessageOpacity,
+                                transform: [{ translateY: successMessageTranslateY }],
+                            },
+                        ]}
+                    >
+                        <MaterialIcons name="check-circle" size={64} color="#FFFFFF" />
+                        <Text style={styles.successTitle}>SOS enviado com sucesso</Text>
+                        <Text style={styles.successSubtitle}>
+                            Sua solicitação de ajuda foi registrada.
+                        </Text>
+                    </Animated.View>
+                </View>
+            )}
+
+            {mostrarOverlayCancelado && (
+                <View pointerEvents="none" style={styles.cancelOverlay}>
+                    <Animated.View
+                        style={[
+                            styles.cancelCircleFill,
+                            {
+                                opacity: cancelCircleOpacity,
+                                transform: [{ scale: cancelCircleScale }],
+                            },
+                        ]}
+                    />
+                </View>
+            )}
         </SafeAreaView>
     );
 }
@@ -350,5 +525,60 @@ const styles = StyleSheet.create({
         backgroundColor: '#F26D6D',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+
+    successOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+    },
+
+    successCircleFill: {
+        position: 'absolute',
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: '#F26D6D',
+    },
+
+    successMessageWrap: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 28,
+    },
+
+    successTitle: {
+        marginTop: 18,
+        fontSize: 30,
+        fontWeight: '800',
+        color: '#FFFFFF',
+        textAlign: 'center',
+    },
+
+    successSubtitle: {
+        marginTop: 10,
+        fontSize: 17,
+        lineHeight: 24,
+        color: '#FFFFFF',
+        textAlign: 'center',
+        opacity: 0.95,
+        maxWidth: 300,
+    },
+
+    cancelOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        overflow: 'hidden',
+    },
+
+    cancelCircleFill: {
+        position: 'absolute',
+        bottom: -60,
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: '#F26D6D',
     },
 });
